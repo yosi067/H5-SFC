@@ -1,0 +1,66 @@
+{
+  "name": "project-16bit-sfc-emulator",
+  "version": "0.1.0",
+  "description": "Project 16-bit: A cycle-accurate Super Famicom (SNES) emulator with enhancement chip support",
+  "author": "Project 16-bit Team",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:cpu": "vitest --filter=cpu65c816",
+    "test:ppu": "vitest --filter=ppu",
+    "test:apu": "vitest --filter=apu",
+    "test:chips": "vitest --filter=chips",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist coverage"
+  },
+  "dependencies": {
+    "eventemitter3": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "@vitest/ui": "^1.0.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "emulator",
+    "snes",
+    "super-famicom",
+    "sfc",
+    "65c816",
+    "retro-gaming",
+    "sa-1",
+    "dsp-1",
+    "mode-7"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/project-16bit/sfc-emulator"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ]
+}

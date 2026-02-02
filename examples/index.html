@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project 16-bit SFC Emulator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #e94560;
+      text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+    }
+    
+    .logo {
+      font-size: 48px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .panel {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .panel h2 {
+      margin-top: 0;
+      color: #0f3460;
+      background: #e94560;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 18px;
+    }
+    
+    .file-input-wrapper {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .file-input-wrapper input[type="file"] {
+      display: none;
+    }
+    
+    .btn {
+      background: #e94560;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    
+    .btn:hover {
+      background: #ff6b6b;
+      transform: translateY(-2px);
+    }
+    
+    .btn:disabled {
+      background: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-secondary {
+      background: #0f3460;
+    }
+    
+    .btn-secondary:hover {
+      background: #16537e;
+    }
+    
+    .canvas-wrapper {
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    canvas {
+      border: 4px solid #e94560;
+      border-radius: 10px;
+      background: #000;
+      image-rendering: pixelated;
+      max-width: 100%;
+    }
+    
+    .info {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .supported-formats {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    
+    .format-tag {
+      background: #0f3460;
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .status {
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+    
+    .status.ready {
+      background: rgba(39, 174, 96, 0.3);
+      color: #27ae60;
+    }
+    
+    .status.error {
+      background: rgba(231, 76, 60, 0.3);
+      color: #e74c3c;
+    }
+    
+    .status.loading {
+      background: rgba(52, 152, 219, 0.3);
+      color: #3498db;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🎮</div>
+    <h1>Project 16-bit SFC Emulator</h1>
+    
+    <div class="panel">
+      <h2>📁 Load ROM</h2>
+      <div class="file-input-wrapper">
+        <input type="file" id="rom-input" accept=".smc,.sfc,.fig,.swc,.zip">
+        <button class="btn" onclick="document.getElementById('rom-input').click()">
+          選擇 ROM 檔案
+        </button>
+        <button class="btn btn-secondary" onclick="loadFromURL()">
+          從 URL 載入
+        </button>
+      </div>
+      
+      <p style="margin-top: 15px; opacity: 0.8;">支援的格式：</p>
+      <div class="supported-formats">
+        <span class="format-tag">.smc</span>
+        <span class="format-tag">.sfc</span>
+        <span class="format-tag">.fig</span>
+        <span class="format-tag">.swc</span>
+        <span class="format-tag">.zip</span>
+      </div>
+    </div>
+    
+    <div class="panel">
+      <h2>🖥️ Display</h2>
+      <div class="canvas-wrapper">
+        <canvas id="screen" width="512" height="448"></canvas>
+      </div>
+      
+      <div class="controls">
+        <button class="btn" id="btn-run" disabled>▶️ 開始</button>
+        <button class="btn btn-secondary" id="btn-pause" disabled>⏸️ 暫停</button>
+        <button class="btn btn-secondary" id="btn-reset" disabled>🔄 重置</button>
+      </div>
+    </div>
+    
+    <div class="panel">
+      <h2>ℹ️ ROM Information</h2>
+      <div id="status" class="status">等待載入 ROM...</div>
+      <div id="info" class="info">-</div>
+    </div>
+    
+    <div class="panel">
+      <h2>🎮 Controller</h2>
+      <table style="width: 100%; text-align: center;">
+        <tr>
+          <th>按鍵</th>
+          <th>功能</th>
+        </tr>
+        <tr><td>↑ ↓ ← →</td><td>方向鍵</td></tr>
+        <tr><td>Z</td><td>B 鍵</td></tr>
+        <tr><td>X</td><td>A 鍵</td></tr>
+        <tr><td>A</td><td>Y 鍵</td></tr>
+        <tr><td>S</td><td>X 鍵</td></tr>
+        <tr><td>Q</td><td>L 鍵</td></tr>
+        <tr><td>W</td><td>R 鍵</td></tr>
+        <tr><td>Enter</td><td>Start</td></tr>
+        <tr><td>Shift</td><td>Select</td></tr>
+      </table>
+    </div>
+  </div>
+  
+  <script type="module">
+    // This example shows how to integrate the emulator
+    // In production, you would import from the built package
+    
+    // Placeholder for demo - shows the expected API
+    class EmulatorDemo {
+      constructor() {
+        this.loaded = false;
+        this.running = false;
+      }
+      
+      async loadROMFile(file) {
+        // Simulate ROM loading
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            this.loaded = true;
+            this.romInfo = {
+              filename: file.name,
+              size: file.size,
+            };
+            resolve(true);
+          }, 500);
+        });
+      }
+      
+      run() {
+        this.running = true;
+      }
+      
+      pause() {
+        this.running = false;
+      }
+      
+      reset() {
+        // Reset emulator
+      }
+    }
+    
+    const emulator = new EmulatorDemo();
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const infoEl = document.getElementById('info');
+    
+    // Draw initial screen
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#e94560';
+    ctx.font = '24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('等待載入 ROM...', canvas.width / 2, canvas.height / 2);
+    
+    // File input handler
+    document.getElementById('rom-input').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      statusEl.className = 'status loading';
+      statusEl.textContent = '載入中...';
+      
+      try {
+        const success = await emulator.loadROMFile(file);
+        
+        if (success) {
+          statusEl.className = 'status ready';
+          statusEl.textContent = '✅ ROM 載入成功！';
+          
+          infoEl.textContent = `檔案名稱: ${file.name}
+檔案大小: ${(file.size / 1024).toFixed(2)} KB
+格式: ${file.name.split('.').pop().toUpperCase()}`;
+          
+          // Enable controls
+          document.getElementById('btn-run').disabled = false;
+          document.getElementById('btn-pause').disabled = false;
+          document.getElementById('btn-reset').disabled = false;
+          
+          // Draw placeholder
+          ctx.fillStyle = '#1a1a2e';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#27ae60';
+          ctx.font = '20px monospace';
+          ctx.fillText('ROM 已載入 - 按開始執行', canvas.width / 2, canvas.height / 2);
+        } else {
+          throw new Error('Failed to load ROM');
+        }
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = '❌ 載入失敗: ' + error.message;
+      }
+    });
+    
+    // Button handlers
+    document.getElementById('btn-run').addEventListener('click', () => {
+      emulator.run();
+      statusEl.textContent = '▶️ 執行中...';
+    });
+    
+    document.getElementById('btn-pause').addEventListener('click', () => {
+      emulator.pause();
+      statusEl.textContent = '⏸️ 已暫停';
+    });
+    
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      emulator.reset();
+      statusEl.textContent = '🔄 已重置';
+    });
+    
+    // URL loading
+    window.loadFromURL = async function() {
+      const url = prompt('請輸入 ROM URL:');
+      if (!url) return;
+      
+      statusEl.className = 'status loading';
+      statusEl.textContent = '從 URL 載入中...';
+      
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        
+        const blob = await response.blob();
+        const filename = url.split('/').pop() || 'rom.sfc';
+        const file = new File([blob], filename);
+        
+        // Trigger the file input handler
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        document.getElementById('rom-input').files = dataTransfer.files;
+        document.getElementById('rom-input').dispatchEvent(new Event('change'));
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = '❌ 載入失敗: ' + error.message;
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project 16-bit SFC Emulator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    header {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      border-bottom: 2px solid #e94560;
+    }
+    
+    .logo {
+      font-size: 32px;
+    }
+    
+    h1 {
+      color: #e94560;
+      font-size: 24px;
+    }
+    
+    main {
+      flex: 1;
+      display: flex;
+      padding: 20px;
+      gap: 20px;
+    }
+    
+    .screen-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .canvas-container {
+      background: #000;
+      padding: 10px;
+      border-radius: 10px;
+      border: 4px solid #e94560;
+      box-shadow: 0 0 30px rgba(233, 69, 96, 0.3);
+    }
+    
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .btn {
+      background: #e94560;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn:hover {
+      background: #ff6b6b;
+      transform: translateY(-2px);
+    }
+    
+    .btn:disabled {
+      background: #444;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-secondary {
+      background: #0f3460;
+    }
+    
+    .btn-secondary:hover {
+      background: #16537e;
+    }
+    
+    .sidebar {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .panel {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 15px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .panel h2 {
+      background: #e94560;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    
+    .file-drop {
+      border: 2px dashed #e94560;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .file-drop:hover, .file-drop.dragover {
+      background: rgba(233, 69, 96, 0.2);
+      border-color: #ff6b6b;
+    }
+    
+    .file-drop .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    
+    .formats {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      justify-content: center;
+    }
+    
+    .format-tag {
+      background: #0f3460;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      font-size: 13px;
+    }
+    
+    .info-label {
+      color: #aaa;
+    }
+    
+    .info-value {
+      color: #fff;
+      font-family: monospace;
+    }
+    
+    .status {
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    
+    .status.waiting { background: rgba(52, 152, 219, 0.3); color: #3498db; }
+    .status.ready { background: rgba(39, 174, 96, 0.3); color: #27ae60; }
+    .status.running { background: rgba(155, 89, 182, 0.3); color: #9b59b6; }
+    .status.error { background: rgba(231, 76, 60, 0.3); color: #e74c3c; }
+    
+    .keyboard-hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 10px;
+    }
+    
+    .key-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .key-row:last-child {
+      border-bottom: none;
+    }
+    
+    .fps-counter {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">🎮</span>
+    <h1>Project 16-bit SFC Emulator</h1>
+  </header>
+  
+  <main>
+    <div class="screen-area">
+      <div class="canvas-container">
+        <canvas id="screen" width="512" height="448"></canvas>
+      </div>
+      
+      <div class="controls">
+        <button class="btn" id="btn-run" disabled>
+          <span>▶️</span> 開始
+        </button>
+        <button class="btn btn-secondary" id="btn-pause" disabled>
+          <span>⏸️</span> 暫停
+        </button>
+        <button class="btn btn-secondary" id="btn-reset" disabled>
+          <span>🔄</span> 重置
+        </button>
+        <button class="btn btn-secondary" id="btn-fullscreen">
+          <span>⛶</span> 全螢幕
+        </button>
+      </div>
+    </div>
+    
+    <div class="sidebar">
+      <div class="panel">
+        <h2>📁 載入 ROM</h2>
+        <input type="file" id="rom-input" accept=".smc,.sfc,.fig,.swc,.zip">
+        <div class="file-drop" id="file-drop">
+          <div class="icon">📂</div>
+          <div>拖放 ROM 檔案到這裡</div>
+          <div style="margin: 10px 0; opacity: 0.7;">或點擊選擇檔案</div>
+          <div class="formats">
+            <span class="format-tag">.smc</span>
+            <span class="format-tag">.sfc</span>
+            <span class="format-tag">.fig</span>
+            <span class="format-tag">.zip</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <h2>ℹ️ ROM 資訊</h2>
+        <div id="status" class="status waiting">等待載入 ROM...</div>
+        <div class="info-grid" id="rom-info" style="margin-top: 12px;">
+          <span class="info-label">名稱:</span>
+          <span class="info-value" id="info-title">-</span>
+          <span class="info-label">Mapping:</span>
+          <span class="info-value" id="info-mapping">-</span>
+          <span class="info-label">大小:</span>
+          <span class="info-value" id="info-size">-</span>
+          <span class="info-label">晶片:</span>
+          <span class="info-value" id="info-chip">-</span>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <h2>🎮 控制器</h2>
+        <div class="key-row"><span>方向鍵</span><span>↑ ↓ ← →</span></div>
+        <div class="key-row"><span>A 鍵</span><span>X</span></div>
+        <div class="key-row"><span>B 鍵</span><span>Z</span></div>
+        <div class="key-row"><span>X 鍵</span><span>S</span></div>
+        <div class="key-row"><span>Y 鍵</span><span>A</span></div>
+        <div class="key-row"><span>L / R</span><span>Q / W</span></div>
+        <div class="key-row"><span>Start</span><span>Enter</span></div>
+        <div class="key-row"><span>Select</span><span>Shift</span></div>
+      </div>
+    </div>
+  </main>
+  
+  <div class="fps-counter" id="fps">FPS: --</div>
+  
+  <script type="module">
+    // Initialize with error handling
+    let Emulator, ROMLoader;
+    let emulator = null;
+    
+    try {
+      const module = await import('./src/index.ts');
+      Emulator = module.Emulator;
+      ROMLoader = module.ROMLoader;
+      console.log('✅ Module loaded successfully');
+    } catch (err) {
+      console.error('❌ Failed to load module:', err);
+      document.getElementById('status').textContent = '❌ 模組載入失敗: ' + err.message;
+      document.getElementById('status').className = 'status error';
+    }
+    
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d');
+    
+    try {
+      if (Emulator) {
+        emulator = new Emulator();
+        console.log('✅ Emulator initialized');
+      }
+    } catch (err) {
+      console.error('❌ Failed to initialize emulator:', err);
+      document.getElementById('status').textContent = '❌ 初始化失敗: ' + err.message;
+      document.getElementById('status').className = 'status error';
+    }
+    
+    let animationId = null;
+    let lastTime = 0;
+    let frameCount = 0;
+    let fpsTime = 0;
+    
+    // Draw initial screen
+    function drawWelcome() {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.fillStyle = '#e94560';
+      ctx.font = 'bold 28px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Project 16-bit', canvas.width / 2, canvas.height / 2 - 40);
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('SFC Emulator', canvas.width / 2, canvas.height / 2);
+      
+      ctx.fillStyle = '#888';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('請載入 ROM 檔案開始', canvas.width / 2, canvas.height / 2 + 40);
+    }
+    
+    drawWelcome();
+    
+    // Status update
+    function setStatus(type, text) {
+      const status = document.getElementById('status');
+      status.className = 'status ' + type;
+      status.textContent = text;
+    }
+    
+    // ROM loading
+    async function loadROM(file) {
+      if (!emulator || !ROMLoader) {
+        setStatus('error', '❌ 模擬器未初始化');
+        return;
+      }
+      
+      setStatus('waiting', '載入中...');
+      console.log('Loading file:', file.name);
+      
+      try {
+        const result = await ROMLoader.loadFromFile(file);
+        console.log('Load result:', result);
+        
+        if (!result.success || !result.rom) {
+          throw new Error(result.error || 'Failed to load ROM');
+        }
+        
+        const success = emulator.loadROM(result.rom.data);
+        
+        if (success) {
+          setStatus('ready', '✅ 已就緒');
+          
+          const header = emulator.getROMHeader();
+          document.getElementById('info-title').textContent = header?.title || file.name;
+          document.getElementById('info-mapping').textContent = header?.mapMode || '-';
+          document.getElementById('info-size').textContent = (result.rom.data.length / 1024).toFixed(0) + ' KB';
+          document.getElementById('info-chip').textContent = header?.enhancementChip || 'None';
+          
+          // Enable controls
+          document.getElementById('btn-run').disabled = false;
+          document.getElementById('btn-pause').disabled = false;
+          document.getElementById('btn-reset').disabled = false;
+          
+          // Draw ready screen
+          ctx.fillStyle = '#1a1a2e';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#27ae60';
+          ctx.font = 'bold 24px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('✅ ROM 載入成功', canvas.width / 2, canvas.height / 2 - 20);
+          ctx.fillStyle = '#fff';
+          ctx.font = '16px sans-serif';
+          ctx.fillText('按「開始」執行遊戲', canvas.width / 2, canvas.height / 2 + 20);
+        } else {
+          throw new Error('Emulator failed to load ROM');
+        }
+      } catch (error) {
+        setStatus('error', '❌ ' + error.message);
+        console.error('Load error:', error);
+      }
+    }
+    
+    // File input
+    const romInput = document.getElementById('rom-input');
+    console.log('ROM input element:', romInput);
+    
+    romInput.addEventListener('change', (e) => {
+      console.log('File input changed:', e.target.files);
+      const file = e.target.files?.[0];
+      if (file) loadROM(file);
+    });
+    
+    // Drag and drop
+    const fileDrop = document.getElementById('file-drop');
+    console.log('File drop element:', fileDrop);
+    
+    fileDrop.addEventListener('click', () => {
+      console.log('File drop clicked');
+      document.getElementById('rom-input').click();
+    });
+    
+    fileDrop.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileDrop.classList.add('dragover');
+    });
+    
+    fileDrop.addEventListener('dragleave', () => {
+      fileDrop.classList.remove('dragover');
+    });
+    
+    fileDrop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileDrop.classList.remove('dragover');
+      const file = e.dataTransfer?.files?.[0];
+      if (file) loadROM(file);
+    });
+    
+    // Game loop
+    let frameNum = 0;
+    function gameLoop(timestamp) {
+      const delta = timestamp - lastTime;
+      lastTime = timestamp;
+      
+      // Run emulator frame
+      emulator.runFrame();
+      frameNum++;
+      
+      // Render frame
+      const frameBuffer = emulator.getFrameBuffer();
+      if (frameBuffer && frameBuffer.length > 0) {
+        // Check if buffer has any non-zero data
+        let hasData = false;
+        for (let i = 0; i < frameBuffer.length; i += 100) {
+          if (frameBuffer[i] !== 0 || frameBuffer[i+1] !== 0 || frameBuffer[i+2] !== 0) {
+            hasData = true;
+            break;
+          }
+        }
+        
+        // Create ImageData directly from the RGBA buffer
+        const imageData = new ImageData(frameBuffer, 256, 224);
+        
+        // Scale to canvas
+        ctx.imageSmoothingEnabled = false;
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 256;
+        tempCanvas.height = 224;
+        tempCanvas.getContext('2d').putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+        
+        // Debug info on first few frames
+        if (frameNum <= 5) {
+          const ppuInfo = emulator.getPPUDebugInfo();
+          const cpuInfo = emulator.getCPUDebugInfo();
+          console.log(`Frame ${frameNum}: buffer length=${frameBuffer.length}, hasData=${hasData}`);
+          console.log(`  CPU: PC=${cpuInfo.PB}:${cpuInfo.PC}, opcode=$${cpuInfo.opcode}, waiting=${cpuInfo.waiting}, halted=${cpuInfo.halted}`);
+          console.log(`  CPU: A=${cpuInfo.A}, X=${cpuInfo.X}, Y=${cpuInfo.Y}, cycles=${cpuInfo.totalCycles}, NMI=${cpuInfo.nmiEnabled}`);
+          console.log(`  PPU: displayEnabled=${ppuInfo.displayEnabled}, brightness=${ppuInfo.brightness}, bgMode=${ppuInfo.bgMode}`);
+          console.log(`  PPU: mainScreen=0x${ppuInfo.mainScreen.toString(16)}, layers=`, ppuInfo.layers);
+          
+          // Print trace log on first frame
+          if (frameNum === 1) {
+            const trace = emulator.getTraceLog();
+            console.log('=== CPU Trace (first 200 instructions) ===');
+            trace.forEach((line, i) => console.log(`${i}: ${line}`));
+          }
+        }
+      } else {
+        // Draw a test pattern if no frame buffer
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#e94560';
+        ctx.font = '16px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('No frame buffer', canvas.width / 2, canvas.height / 2);
+        if (frameNum <= 5) {
+          console.log(`Frame ${frameNum}: NO BUFFER`);
+        }
+      }
+      
+      // FPS counter
+      frameCount++;
+      fpsTime += delta;
+      if (fpsTime >= 1000) {
+        document.getElementById('fps').textContent = `FPS: ${frameCount}`;
+        frameCount = 0;
+        fpsTime = 0;
+      }
+      
+      animationId = requestAnimationFrame(gameLoop);
+    }
+    
+    // Controls
+    document.getElementById('btn-run').addEventListener('click', () => {
+      if (!animationId) {
+        setStatus('running', '▶️ 執行中');
+        lastTime = performance.now();
+        animationId = requestAnimationFrame(gameLoop);
+      }
+    });
+    
+    document.getElementById('btn-pause').addEventListener('click', () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+        setStatus('ready', '⏸️ 已暫停');
+      }
+    });
+    
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      emulator.reset();
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      setStatus('ready', '🔄 已重置');
+    });
+    
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      const container = document.querySelector('.canvas-container');
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      }
+    });
+    
+    // Keyboard input
+    const keyMap = {
+      'ArrowUp': 'up',
+      'ArrowDown': 'down',
+      'ArrowLeft': 'left',
+      'ArrowRight': 'right',
+      'KeyX': 'a',
+      'KeyZ': 'b',
+      'KeyS': 'x',
+      'KeyA': 'y',
+      'KeyQ': 'l',
+      'KeyW': 'r',
+      'Enter': 'start',
+      'ShiftLeft': 'select',
+      'ShiftRight': 'select',
+    };
+    
+    document.addEventListener('keydown', (e) => {
+      const button = keyMap[e.code];
+      if (button && emulator) {
+        e.preventDefault();
+        emulator.setButton(1, button, true);
+      }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+      const button = keyMap[e.code];
+      if (button && emulator) {
+        e.preventDefault();
+        emulator.setButton(1, button, false);
+      }
+    });
+    
+    console.log('🎮 Project 16-bit SFC Emulator initialized');
+    console.log('✅ Event listeners attached');
+    if (ROMLoader) {
+      console.log('Supported formats:', ROMLoader.getSupportedFormats());
+    }
+  </script>
+</body>
+</html>
